@@ -1,0 +1,244 @@
+/* Seu CSS existente ... */
+body {
+    font-family: sans-serif;
+    line-height: 1.6;
+    margin: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+.container {
+    max-width: auto;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+fieldset {
+    border: 1px solid #ddd;
+    padding: 20px;
+    margin-bottom: 20px;
+    border-radius: 5px;
+}
+
+legend {
+    padding: 0 10px;
+    font-weight: bold;
+    color: #337ab7;
+}
+
+legend h2 {
+    margin: 0;
+    font-size: 1.2em;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="date"],
+input[type="file"],
+textarea {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+textarea {
+    height: 100px;
+    resize: vertical;
+}
+
+button {
+    background-color: #337ab7;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    margin-right: 10px;
+}
+
+button:hover {
+    background-color: #286090;
+}
+
+button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.form-row > div {
+    flex: 0.5;
+}
+
+#dados-gerais-fs .form-row > div {
+    flex-grow: 0;
+    flex-shrink: 1;
+    flex-basis: auto;
+}
+
+#dados-gerais-fs .form-row input[type="text"],
+#dados-gerais-fs .form-row input[type="date"] {
+    width: auto;
+    min-width: 100px;
+}
+#dados-gerais-fs .form-row input[type="file"] {
+    width: auto;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px; /* Será ajustado/removido se dentro de fonte-recurso-item */
+}
+
+.checkbox-container > label {
+    margin-bottom: 0;
+    font-weight: normal;
+}
+
+/* Estilos para o .form-subsection original */
+.form-subsection {
+    padding-left: 28px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+}
+
+/* --- NOVOS ESTILOS PARA FONTE DE RECURSO ITEM --- */
+.fonte-recurso-item {
+    display: flex;
+    align-items: center; /* Alinha o checkbox-container e o form-subsection verticalmente */
+    gap: 15px;          /* Espaço entre o checkbox+label e a seção de valor */
+    margin-bottom: 10px; /* Espaço entre cada fonte-recurso-item */
+}
+
+/* Ajusta o .checkbox-container quando dentro de .fonte-recurso-item */
+.fonte-recurso-item .checkbox-container {
+    margin-bottom: 0; /* Remove a margem inferior, pois .fonte-recurso-item controla */
+}
+
+/* Ajusta o .form-subsection (onde está o input de valor) quando dentro de .fonte-recurso-item */
+.fonte-recurso-item .form-subsection {
+    padding-left: 0;  /* Remove o padding original */
+    margin-top: 0;    /* Remove a margem superior original */
+    margin-bottom: 0; /* Remove a margem inferior original */
+    display: flex;    /* Para alinhar a label "Valor (R$):" e o input horizontalmente */
+    align-items: center;
+    gap: 8px;         /* Espaço entre a label "Valor (R$):" e o input */
+}
+
+/* Para o input de valor dentro do .form-subsection no .fonte-recurso-item */
+.fonte-recurso-item .form-subsection input[type="text"] {
+    width: auto; /* Permite que o atributo 'size' do input defina a largura */
+                 /* Ou você pode definir uma largura fixa, ex: width: 150px; */
+    margin-bottom: 0; /* Remove margem que pode vir do estilo geral de input */
+}
+
+/* Labels dentro do .form-subsection que está em .fonte-recurso-item (ex: "Valor (R$):") */
+.fonte-recurso-item .form-subsection > label {
+    margin-bottom: 0; /* Remove margem inferior da label */
+    font-weight: normal; /* Pode querer que não seja negrito */
+}
+
+
+/* Estilos para a tabela de visualização do Excel (opcional) */
+#excel-data-display table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+#excel-data-display th, #excel-data-display td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+#excel-data-display th {
+    background-color: #f2f2f2;
+}
+
+#fichas-carregadas-count {
+    font-style: italic;
+    color: #555;
+    margin-top: 5px;
+}
+
+#projeto-lei-gerado {
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px dashed #ccc;
+    background-color: #f9f9f9;
+    line-height: 1.5;
+}
+#projeto-lei-gerado h1,
+#projeto-lei-gerado h2,
+#projeto-lei-gerado h3 {
+    color: #333;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+#projeto-lei-gerado p {
+    margin-bottom: 1em;
+    text-align: justify;
+}
+#projeto-lei-gerado .assinatura {
+    text-align: center;
+    margin-top: 40px;
+}
+#projeto-lei-gerado table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+#projeto-lei-gerado th,
+#projeto-lei-gerado td {
+    border: 1px solid #000;
+    padding: 5px;
+    text-align: left;
+}
+#projeto-lei-gerado .brasao-container {
+    text-align: center;
+    margin-bottom: 20px;
+}
+#projeto-lei-gerado .brasao-pl {
+    max-width: 100px;
+    max-height: 100px;
+}
+.tabela-documento, .tabela-documento th, .tabela-documento td {
+    border: none !important; /* Remove todas as bordas */
+    border-collapse: collapse; /* Útil para garantir que não haja espaços entre células se bordas forem 0 */
+}
+
+/* Opcional: adicionar algum espaçamento para clareza se não houver bordas */
+.tabela-documento th, .tabela-documento td {
+    padding: 5px 8px; /* Adiciona um pouco de padding */
+}
+
+/* Manter uma linha separadora abaixo do cabeçalho e acima do total, se desejado,
+   já que as bordas das células foram removidas */
+.tabela-documento thead tr {
+    border-bottom: 1px solid #ccc; /* Linha abaixo do cabeçalho */
+}
+.tabela-documento tr.total-row {
+    border-top: 1px solid #ccc; /* Linha acima da linha de total */
+}

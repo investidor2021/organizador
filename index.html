@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Projeto de Lei - Dotações</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+	<script src="https://unpkg.com/docx@8.2.2/build/index.umd.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Gerador de Projeto de Lei - Dotações</h1>
+
+        <fieldset id="dados-gerais-fs">
+            <legend><h2>Dados Gerais do Projeto</h2></legend>
+            <div class="form-row">
+                <div>
+                    <label for="nome-municipio">Nome do Município:</label>
+                    <input type="text" id="nome-municipio" value="Vargem Grande do Sul" size="30">
+                </div>
+                <div>
+                    <label for="nome-prefeito">Nome do Prefeito:</label>
+                    <input type="text" id="nome-prefeito" value="CELSO LUIS RIBEIRO" size="30">
+                </div>
+				<div>
+                    <label for="num-ppa">PPA Vigente:</label>
+                    <input type="text" id="num-ppa" value="Lei - Nº 4.598, de 17 de novembro de 2021 " size="40">
+                </div>
+				<div>
+                    <label for="num-ldo">LDO Vigente:</label>
+                    <input type="text" id="num-ldo" value="Lei - Nº 4.998, de 1º de julho de 2024" size="40">
+                </div>
+            </div>
+			
+            <div class="form-row">
+                <div>
+                    <label for="numero-pl">Número do Projeto de Lei (Opcional):</label>
+                    <input type="text" id="numero-pl" placeholder="Ex: 001/2025" size="15">
+                </div>
+                <div>
+                    <label for="data-pl">Data do Projeto de Lei:</label>
+                    <input type="date" id="data-pl">
+                </div>
+				<div>
+                    <label for="brasao-file">Brasão do Município (opcional):</label>
+                    <input type="file" id="brasao-file" accept="image/png, image/jpeg">
+                    <img id="brasao-preview" src="#" alt="Pré-visualização do Brasão" style="max-width: 100px; max-height: 100px; display: none; margin-top: 10px;">
+                </div>
+            </div>
+			<div class="form-group">
+        <label>Tipo de Documento:</label>
+        <div>
+            <input type="radio" id="tipo-projeto-lei" name="tipoDocumento" value="projetoLei" checked>
+            <label for="tipo-projeto-lei">Projeto de Lei</label>
+        </div>
+        <div>
+            <input type="radio" id="tipo-lei-final" name="tipoDocumento" value="leiFinal">
+            <label for="tipo-lei-final">Lei (Finalizada)</label>
+        </div>
+        <div>
+            <input type="radio" id="tipo-decreto" name="tipoDocumento" value="decreto">
+            <label for="tipo-decreto">Decreto</label>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="numero-pl">Número do Documento (PL/Lei/Decreto):</label>
+        <input type="text" id="numero-pl" placeholder="Ex: 123/2023 ou deixe em branco">
+    </div>
+    <div class="form-group">
+        <label for="data-pl">Data do Documento (PL/Lei/Decreto):</label>
+        <input type="date" id="data-pl">
+    </div>
+    <!-- ... PPA, LDO, Justificativa, etc. ... -->
+    <div class="form-group" id="justificativa-group"> <!-- Adicione um ID ao grupo da justificativa -->
+        <label for="justificativa-pl">Justificativa do Projeto de Lei:</label>
+        <textarea id="justificativa-pl" rows="5" placeholder="Detalhe a necessidade do crédito..."></textarea>
+    </div>
+</div>
+        </fieldset>
+
+        <fieldset>
+            <legend><h2>Fonte de Recursos e Dotações</h2></legend>
+            <div>
+                <label for="excel-file">Carregar Fichas Orçamentárias (Excel):</label>
+                <input type="file" id="excel-file" accept=".xls,.xlsx">
+                <div id="excel-data-display" class="hidden">
+                    <p id="fichas-carregadas-count">Nenhuma ficha carregada.</p>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <label>Fontes de Recurso para o Crédito Adicional:</label>
+
+                <!-- Item Superávit -->
+                <div class="fonte-recurso-item">
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="fonte_superavit" name="fonte_recurso" value="superavit">
+                        <label for="fonte_superavit">Superávit Financeiro</label>
+                    </div>
+                    <div id="superavit-valor-section" class="hidden form-subsection">
+                        <label for="valor-superavit">Valor (R$):</label> <!-- Label simplificada -->
+                        <input type="text" id="valor-superavit" placeholder="0,00" size="15">
+                    </div>
+                </div>
+
+                <!-- Item Excesso -->
+                <div class="fonte-recurso-item">
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="fonte_excesso" name="fonte_recurso" value="excesso">
+                        <label for="fonte_excesso">Excesso de Arrecadação</label>
+                    </div>
+                    <div id="excesso-valor-section" class="hidden form-subsection">
+                        <label for="valor-excesso">Valor (R$):</label> <!-- Label simplificada -->
+                        <input type="text" id="valor-excesso" placeholder="0,00" size="15">
+                    </div>
+                </div>
+
+                <!-- Item Anulação (continua como estava, pois a anulação tem uma lógica mais complexa abaixo) -->
+                <div class="checkbox-container">
+                    <input type="checkbox" id="fonte_anulacao" name="fonte_recurso" value="anulacao">
+                    <label for="fonte_anulacao">Anulação de Dotações</label>
+                </div>
+            </div>
+			
+            <div id="tipo-credito-config-section" class="form-section hidden" style="margin-bottom: 15px; padding: 15px; border: 1px solid #eee; background-color: #f9f9f9;">
+                <h4>Configuração do Tipo de Crédito</h4>
+                <div class="form-group">
+                    <label for="credito-especial-checkbox" style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="credito-especial-checkbox" name="credito_especial" style="margin-right: 8px; transform: scale(1.2);">
+                        <strong>É Crédito Especial (implica criação de nova dotação orçamentária)?</strong>
+                    </label>
+                    <p class="form-text text-muted" style="font-size: 0.9em; margin-top: 5px;">
+                        Se marcado, você digitará a nova dotação e o texto do projeto será "Crédito Adicional Especial".<br>
+                        Se desmarcado, será "Crédito Adicional Suplementar" e você selecionará uma ficha existente da planilha.
+                    </p>
+                </div>
+            </div>
+ 
+            <div id="valor-inicial-section" class="hidden">
+                <label for="valor-inicial">Valor da Fonte (Superávit/Excesso) (R$):</label>
+                <input type="text" id="valor-inicial" placeholder="0,00">
+                <label for="detalhes-fonte">Detalhes da Fonte (Superávit/Excesso - Opcional):</label>
+                <input type="text" id="detalhes-fonte" placeholder="Ex: Recurso Federal oriundo do Ministério X, Convênio Y">
+            </div>
+
+            <div id="anulacao-section" class="hidden">
+                <h3>Fichas de Anulação (Origem do Recurso)</h3>
+                <div id="anulacao-fichas-container"></div>
+                <button id="add-anulacao-ficha-btn" disabled>Adicionar Ficha de Anulação</button>
+            </div>
+					
+            <div id="credito-section" class="hidden">
+                <h3>Fichas de Crédito Adicional (Destino do Recurso)</h3>
+                <div id="credito-fichas-container"></div>
+                <button id="add-credito-ficha-btn" disabled>Adicionar Ficha de Crédito</button>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend><h2>Justificativa do Projeto</h2></legend>
+            <label for="justificativa-pl">Texto da Justificativa:</label>
+            <textarea id="justificativa-pl" placeholder="Insira aqui a justificativa do projeto de lei..."></textarea>
+        </fieldset>
+        <hr style="margin: 25px 0;">
+        <button id="processar-btn">Gerar Projeto de Lei (HTML)</button>
+        <button id="gerar-pdf-btn" class="hidden" style="background-color: #28a745;">Gerar PDF</button>
+		<button id="gerar-docx-btn" class="hidden" style="background-color: #17a2b8;">Gerar DOCX</button>
+
+
+        <div id="projeto-lei-gerado-container">
+            <div id="projeto-lei-gerado" class="hidden">
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
