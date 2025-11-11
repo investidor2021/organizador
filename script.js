@@ -1,120 +1,120 @@
-// script.js - Gerador de Projeto/Lei/Decreto com suporte a fichas do Excel, totais e extenso (pt-BR)
+// script.js - Gerador oficial (PL / LEI / DECRETO) com DOCX e PDF fiéis aos modelos enviados.
+// Requisitos: index.html já deve carregar XLSX, jspdf, docx (como no seu index.html anterior).
 
 // -----------------------------
 // Helpers: formatação e extenso
 // -----------------------------
 function formatCurrency(value) {
     if (value === null || value === undefined || value === '') return '';
-    const n = Number(String(value).replace(/\./g, '').replace(',', '.'));
+    const n = Number(String(value).toString().replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
     if (isNaN(n)) return '';
     return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// converte número (float ou string) para extenso em reais (ex: "650.320,13" -> "seiscentos e cinquenta mil, trezentos e vinte reais e treze centavos")
-// Versão razoavelmente completa para valores até milhões/bilhão — suficiente para uso público municipal.
+function parseNumberFromString(str) {
+    if (str === null || str === undefined || str === '') return null;
+    const cleaned = String(str).replace(/\s/g, '').replace(/\./g, '').replace(',', '.').replace(/[^\d\.-]/g, '');
+    const n = Number(cleaned);
+    return isNaN(n) ? null : n;
+}
+
+// extenso em pt-BR (valores até trilhões, simplicado porém robusto)
 function numeroParaExtensoBR(valor) {
-    if (valor === '' || valor === null || valor === undefined) return '';
-    // normalizar
-    let n = Number(String(valor).replace(/\./g, '').replace(',', '.'));
-    if (isNaN(n)) return '';
+    if (valor === null || valor === undefined || valor === '') return '';
+    const n = parseNumberFromString(valor);
+    if (n === null) return '';
 
     const unidades = ['zero','um','dois','três','quatro','cinco','seis','sete','oito','nove','dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
     const dezenas = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
     const centenas = ['','cento','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
 
-    function tresDigitosParaExtenso(n) {
-        n = Number(n);
-        if (n === 0) return '';
-        if (n === 100) return 'cem';
-        let c = Math.floor(n / 100);
-        let d = Math.floor((n % 100) / 10);
-        let u = n % 10;
+    function tresDigitosParaExtenso(num) {
+        num = Number(num);
+        if (num === 0) return '';
+        if (num === 100) return 'cem';
+        let c = Math.floor(num / 100);
+        let r = num % 100;
         let texto = '';
-        if (n < 20) return unidades[n];
         if (c) texto += centenas[c];
-        let resto = n % 100;
-        if (resto) {
+        if (r) {
             if (texto) texto += ' e ';
-            if (resto < 20) texto += unidades[resto];
+            if (r < 20) texto += unidades[r];
             else {
-                let de = Math.floor(resto / 10);
-                let un = resto % 10;
-                texto += dezenas[de];
-                if (un) texto += ' e ' + unidades[un];
+                let d = Math.floor(r / 10);
+                let u = r % 10;
+                texto += dezenas[d];
+                if (u) texto += ' e ' + unidades[u];
             }
         }
         return texto;
     }
 
-    let inteiro = Math.floor(n);
-    let centavos = Math.round((n - inteiro) * 100);
+    let inteiro = Math.floor(Math.abs(n));
+    let centavos = Math.round((Math.abs(n) - inteiro) * 100);
 
     if (inteiro === 0) {
-        var resultadoInteiro = 'zero reais';
+        var parteInteiro = 'zero reais';
     } else {
-        // separar em grupos de 3 dígitos
+        const nomes = ['', 'mil', 'milhão', 'bilhão', 'trilhão'];
+        const nomesPlural = ['', 'mil', 'milhões', 'bilhões', 'trilhões'];
         const grupos = [];
         while (inteiro > 0) {
             grupos.push(inteiro % 1000);
             inteiro = Math.floor(inteiro / 1000);
         }
-        const nomesGruposSingular = ['', 'mil', 'milhão', 'bilhão', 'trilhão'];
-        const nomesGruposPlural = ['', 'mil', 'milhões', 'bilhões', 'trilhões'];
-
-        let partes = [];
+        const partes = [];
         for (let i = grupos.length - 1; i >= 0; i--) {
-            const nGrupo = grupos[i];
-            if (nGrupo === 0) continue;
-            let textoGrupo = tresDigitosParaExtenso(nGrupo);
+            const g = grupos[i];
+            if (g === 0) continue;
+            let textoGrupo = tresDigitosParaExtenso(g);
             let sufixo = '';
             if (i > 0) {
-                if (nGrupo === 1) sufixo = ' ' + nomesGruposSingular[i];
-                else sufixo = ' ' + nomesGruposPlural[i];
+                sufixo = (g === 1 ? ' ' + nomes[i] : ' ' + nomesPlural[i]);
             }
             partes.push((textoGrupo + sufixo).trim());
         }
-
-        resultadoInteiro = partes.join(' e ') + (partsEndsWithPlural(partes) ? ' reais' : ' reais');
+        parteInteiro = partes.join(' e ') + ' reais';
     }
 
-    function partsEndsWithPlural(parts) {
-        // simplificado: se o número total > 1 -> plural reais
-        return true;
-    }
-
-    let resultadoFinal = resultadoInteiro;
+    let resultado = parteInteiro;
     if (centavos && centavos > 0) {
-        // centavos por extenso
-        let cExt = tresDigitosParaExtenso(centavos);
-        resultadoFinal += ' e ' + cExt + (centavos === 1 ? ' centavo' : ' centavos');
+        const cExt = tresDigitosParaExtenso(centavos);
+        resultado += ' e ' + cExt + (centavos === 1 ? ' centavo' : ' centavos');
     }
-
-    return resultadoFinal;
+    if (n < 0) resultado = 'menos ' + resultado;
+    return resultado;
 }
 
 // -----------------------------
-// Formatação em inputs (ao digitar)
+// Small DOM utilities
 // -----------------------------
-function formatCurrencyForInputEvent(e) {
-    const el = e.target;
-    let digitsOnly = el.value.replace(/\D/g, '');
-    if (!digitsOnly) {
-        el.value = '';
-        return;
+function ensureInputExists(id, labelText, parentSelector = 'body') {
+    let el = document.getElementById(id);
+    if (!el) {
+        const parent = document.querySelector(parentSelector) || document.body;
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '6px';
+        const label = document.createElement('label');
+        label.textContent = labelText + ': ';
+        el = document.createElement('input');
+        el.id = id;
+        el.type = 'text';
+        wrapper.appendChild(label);
+        wrapper.appendChild(el);
+        parent.appendChild(wrapper);
     }
-    let numberValue = parseInt(digitsOnly, 10) / 100;
-    if (isNaN(numberValue)) {
-        el.value = '';
-        return;
-    }
-    el.value = numberValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return el;
 }
 
 // -----------------------------
-// Lógica principal
+// Main
 // -----------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    // elementos do DOM (garanta que existam no index.html)
+    // elementos existentes no seu index.html
+    const excelFileInput = document.getElementById('excel-file');
+    const fichasCount = document.getElementById('fichas-carregadas-count');
+    const excelDisplay = document.getElementById('excel-data-display');
+
     const superavitCheck = document.getElementById('fonte_superavit');
     const excessoCheck = document.getElementById('fonte_excesso');
     const anulacaoCheck = document.getElementById('fonte_anulacao');
@@ -129,10 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const anulacaoContainer = document.getElementById('anulacao-fichas-container');
     const creditoContainer = document.getElementById('credito-fichas-container');
 
-    const excelFileInput = document.getElementById('excel-file');
-    const excelDisplay = document.getElementById('excel-data-display');
-    const fichasCount = document.getElementById('fichas-carregadas-count');
-
     const processarBtn = document.getElementById('processar-btn');
     const gerarPdfBtn = document.getElementById('gerar-pdf-btn');
     const gerarDocxBtn = document.getElementById('gerar-docx-btn');
@@ -140,30 +136,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const valorSuperavitInput = document.getElementById('valor-superavit');
     const valorExcessoInput = document.getElementById('valor-excesso');
-    const valorInicialSection = document.getElementById('valor-inicial-section');
 
+    // campos adicionais que o usuário confirmou (assinaturas)
+    const nomePrefeitoInput = document.getElementById('nome-prefeito') || ensureInputExists('nome-prefeito', 'Nome do Prefeito', '.container');
+    const nomeMunicipioInput = document.getElementById('nome-municipio') || ensureInputExists('nome-municipio', 'Nome do Município', '.container');
+    const dataDocumentoInput = document.getElementById('data-pl') || ensureInputExists('data-pl', 'Data do Documento', '.container');
+    // campo para secretária / segunda assinatura
+    let nomeSecretariaInput = document.getElementById('nome-secretaria');
+    if (!nomeSecretariaInput) {
+        // criar campo opcional para secretaria/cargo
+        const parent = document.querySelector('.container') || document.body;
+        const wrap = document.createElement('div');
+        wrap.style.marginTop = '8px';
+        wrap.innerHTML = `<label for="nome-secretaria">Nome da Secretária (opcional): </label><input id="nome-secretaria" type="text"> <label for="cargo-secretaria" style="margin-left:8px">Cargo: </label><input id="cargo-secretaria" type="text">`;
+        parent.appendChild(wrap);
+        nomeSecretariaInput = document.getElementById('nome-secretaria');
+    }
+    const cargoSecretariaInput = document.getElementById('cargo-secretaria') || document.getElementById('cargo-secretaria');
+
+    // garantia: botões existem
+    if (!processarBtn || !gerarPdfBtn || !gerarDocxBtn) {
+        console.warn('Botões processar/gerar não encontrados no HTML.');
+    }
+
+    // dados das fichas lidas do Excel
     let fichasExcel = []; // { codigo, descricao, valor }
 
-    // atualizar visibilidade com controle de habilitação dos botões
+    // atualizar visibilidade e habilitação
     function atualizarVisibilidade() {
         superavitSection?.classList.toggle('hidden', !superavitCheck?.checked);
         excessoSection?.classList.toggle('hidden', !excessoCheck?.checked);
         anulacaoSection?.classList.toggle('hidden', !anulacaoCheck?.checked);
 
-        // creditoSection aparece se qualquer fonte estiver marcada (possível destino)
         const anyFonte = superavitCheck?.checked || excessoCheck?.checked || anulacaoCheck?.checked;
         creditoSection?.classList.toggle('hidden', !anyFonte);
 
         addAnulacaoBtn.disabled = !anulacaoCheck.checked || fichasExcel.length === 0;
         addCreditoBtn.disabled = !anyFonte || fichasExcel.length === 0;
     }
+    [superavitCheck, excessoCheck, anulacaoCheck].forEach(chk => { if (chk) chk.addEventListener('change', atualizarVisibilidade); });
 
-    // anexar listeners de change
-    [superavitCheck, excessoCheck, anulacaoCheck].forEach(chk => {
-        if (chk) chk.addEventListener('change', atualizarVisibilidade);
-    });
-
-    // Leitura do Excel. Tenta identificar colunas: código (coluna 0), descrição (coluna 1) e valor (coluna que contenha número)
+    // leitura do Excel - espera código (col0), descricao (col1), valor (qualquer coluna numérica depois)
     excelFileInput?.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -172,48 +185,31 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = new Uint8Array(evt.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const sheetName = workbook.SheetNames[0];
-            const sheet = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: '' });
 
-            // Identifica cabeçalho (se houver) ou trata a primeira coluna como código
-            // Vamos mapear cada linha em { codigo, descricao, valor }
-            let rows = sheet.slice(0); // cópia
-            // tentativa: se a primeira linha contém texto "Código" ou "Ficha", trata como cabeçalho
-            let startIndex = 0;
-            const header = rows[0].map(c => String(c).toLowerCase());
-            if (header.some(h => /cod|cód|ficha|codigo|descrição|descr/i.test(h))) {
-                startIndex = 1;
+            // detectar cabeçalho (se a primeira linha parece conter "cod" ou "ficha")
+            let start = 0;
+            if (rows.length > 0) {
+                const first = rows[0].map(c => String(c).toLowerCase());
+                if (first.some(cell => /cod|cód|ficha|codigo|descri|descrição|descricao/i.test(cell))) start = 1;
             }
 
             fichasExcel = [];
-            for (let i = startIndex; i < rows.length; i++) {
-                const row = rows[i];
-                if (!row || row.length === 0) continue;
-                const codigo = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
-                const descricao = (row[1] !== undefined && row[1] !== null) ? String(row[1]).trim() : '';
-                // tentar encontrar um valor numérico em alguma coluna
-                let valor = '';
-                for (let c = 2; c < row.length; c++) {
-                    const cell = row[c];
-                    if (cell === null || cell === '') continue;
-                    const cellStr = String(cell).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-                    if (/^-?\d+(\.\d+)?$/.test(cellStr)) {
-                        valor = Number(cellStr);
-                        break;
-                    }
+            for (let i = start; i < rows.length; i++) {
+                const r = rows[i];
+                if (!r || r.length === 0) continue;
+                const codigo = r[0] !== undefined ? String(r[0]).trim() : '';
+                const descricao = r[1] !== undefined ? String(r[1]).trim() : '';
+                let valor = null;
+                for (let c = 2; c < r.length; c++) {
+                    const maybe = parseNumberFromString(r[c]);
+                    if (maybe !== null) { valor = maybe; break; }
                 }
-                // se não encontrou valor nas colunas seguintes, tentar coluna 2 ou 3
-                if (valor === '' && row[2] !== undefined && row[2] !== '') {
-                    const cellStr = String(row[2]).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-                    if (/^-?\d+(\.\d+)?$/.test(cellStr)) valor = Number(cellStr);
-                }
+                // se não encontrou, testar coluna 2 mesmo como string numérica
+                if (valor === null && r[2] !== undefined) valor = parseNumberFromString(r[2]);
 
-                // somente linhas com código/descrição
                 if (codigo || descricao) {
-                    fichasExcel.push({
-                        codigo: codigo || descricao,
-                        descricao: descricao || codigo,
-                        valor: (valor === '' ? null : Number(valor))
-                    });
+                    fichasExcel.push({ codigo: codigo || descricao, descricao: descricao || '', valor: valor });
                 }
             }
 
@@ -224,331 +220,504 @@ document.addEventListener('DOMContentLoaded', () => {
         reader.readAsArrayBuffer(file);
     });
 
-    // Função para criar option text legível
+    // helper: option text from ficha (exibe o código inteiro como solicitado)
     function optionTextFromFicha(f) {
-        const valorTxt = f.valor !== null && f.valor !== undefined ? ` - R$ ${formatCurrency(f.valor)}` : '';
-        return `${f.codigo} ${f.descricao ? '- ' + f.descricao : ''}${valorTxt}`;
+        const v = (f.valor !== null && f.valor !== undefined) ? ` - R$ ${formatCurrency(f.valor)}` : '';
+        return `${f.codigo}${f.descricao ? ' - ' + f.descricao : ''}${v}`;
     }
 
-    // Adiciona item de anulação (origem)
+    // criar item de anulação (origem)
     addAnulacaoBtn?.addEventListener('click', () => {
         if (fichasExcel.length === 0) return;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'anulacao-item';
-        wrapper.style.marginBottom = '8px';
+        const row = document.createElement('div');
+        row.className = 'anul-item';
+        row.style.marginBottom = '8px';
 
-        const select = document.createElement('select');
-        select.style.minWidth = '320px';
+        const sel = document.createElement('select');
+        sel.style.minWidth = '420px';
         fichasExcel.forEach((f, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = optionTextFromFicha(f);
-            select.appendChild(opt);
+            const o = document.createElement('option');
+            o.value = idx;
+            o.textContent = optionTextFromFicha(f);
+            sel.appendChild(o);
         });
 
-        const valorInput = document.createElement('input');
-        valorInput.type = 'text';
-        valorInput.placeholder = 'Valor (R$)';
-        valorInput.size = 12;
-        valorInput.style.marginLeft = '8px';
-        valorInput.addEventListener('input', formatCurrencyForInputEvent);
-
-        // se a ficha tiver valor pré-definido, preencher ao selecionar
-        select.addEventListener('change', () => {
-            const f = fichasExcel[Number(select.value)];
-            if (f && f.valor !== null && f.valor !== undefined) {
-                valorInput.value = formatCurrency(f.valor);
-                calcularTotais();
-            }
-        });
-
-        // preencher valor inicial com a primeira ficha
-        if (fichasExcel[0]) {
-            if (fichasExcel[0].valor !== null && fichasExcel[0].valor !== undefined) {
-                valorInput.value = formatCurrency(fichasExcel[0].valor);
-            }
-        }
-
-        const btnRem = document.createElement('button');
-        btnRem.type = 'button';
-        btnRem.textContent = 'Remover';
-        btnRem.style.marginLeft = '8px';
-        btnRem.addEventListener('click', () => {
-            wrapper.remove();
+        const valor = document.createElement('input');
+        valor.type = 'text';
+        valor.placeholder = 'Valor (R$)';
+        valor.size = 12;
+        valor.style.marginLeft = '8px';
+        valor.addEventListener('input', (e) => {
+            const el = e.target;
+            const digits = el.value.replace(/\D/g, '');
+            if (!digits) { el.value = ''; return; }
+            const num = parseInt(digits, 10) / 100;
+            el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             calcularTotais();
         });
 
-        wrapper.appendChild(document.createTextNode('Origem: '));
-        wrapper.appendChild(select);
-        wrapper.appendChild(document.createTextNode(' Valor: '));
-        wrapper.appendChild(valorInput);
-        wrapper.appendChild(btnRem);
+        // preencher valor se ficha tiver valor
+        if (fichasExcel[0] && fichasExcel[0].valor !== null) {
+            valor.value = formatCurrency(fichasExcel[0].valor);
+        }
+        sel.addEventListener('change', () => {
+            const f = fichasExcel[Number(sel.value)];
+            if (f && f.valor !== null) valor.value = formatCurrency(f.valor);
+            calcularTotais();
+        });
 
-        anulacaoContainer.appendChild(wrapper);
+        const rem = document.createElement('button');
+        rem.type = 'button';
+        rem.textContent = 'Remover';
+        rem.style.marginLeft = '8px';
+        rem.addEventListener('click', () => { row.remove(); calcularTotais(); });
+
+        row.appendChild(document.createTextNode('Origem: '));
+        row.appendChild(sel);
+        row.appendChild(document.createTextNode(' Valor: '));
+        row.appendChild(valor);
+        row.appendChild(rem);
+
+        anulacaoContainer.appendChild(row);
         calcularTotais();
     });
 
-    // Adiciona item de credito (destino)
+    // criar item de crédito (destino)
     addCreditoBtn?.addEventListener('click', () => {
         if (fichasExcel.length === 0) return;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'credito-item';
-        wrapper.style.marginBottom = '8px';
+        const row = document.createElement('div');
+        row.className = 'cred-item';
+        row.style.marginBottom = '8px';
 
-        const select = document.createElement('select');
-        select.style.minWidth = '320px';
+        const sel = document.createElement('select');
+        sel.style.minWidth = '420px';
         fichasExcel.forEach((f, idx) => {
-            const opt = document.createElement('option');
-            opt.value = idx;
-            opt.textContent = optionTextFromFicha(f);
-            select.appendChild(opt);
+            const o = document.createElement('option');
+            o.value = idx;
+            o.textContent = optionTextFromFicha(f);
+            sel.appendChild(o);
         });
 
-        const valorInput = document.createElement('input');
-        valorInput.type = 'text';
-        valorInput.placeholder = 'Valor (R$)';
-        valorInput.size = 12;
-        valorInput.style.marginLeft = '8px';
-        valorInput.addEventListener('input', formatCurrencyForInputEvent);
-
-        const btnRem = document.createElement('button');
-        btnRem.type = 'button';
-        btnRem.textContent = 'Remover';
-        btnRem.style.marginLeft = '8px';
-        btnRem.addEventListener('click', () => {
-            wrapper.remove();
+        const valor = document.createElement('input');
+        valor.type = 'text';
+        valor.placeholder = 'Valor (R$)';
+        valor.size = 12;
+        valor.style.marginLeft = '8px';
+        valor.addEventListener('input', (e) => {
+            const el = e.target;
+            const digits = el.value.replace(/\D/g, '');
+            if (!digits) { el.value = ''; return; }
+            const num = parseInt(digits, 10) / 100;
+            el.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             calcularTotais();
         });
 
-        wrapper.appendChild(document.createTextNode('Destino: '));
-        wrapper.appendChild(select);
-        wrapper.appendChild(document.createTextNode(' Valor: '));
-        wrapper.appendChild(valorInput);
-        wrapper.appendChild(btnRem);
+        sel.addEventListener('change', () => { const f = fichasExcel[Number(sel.value)]; if (f && f.valor !== null) valor.value = formatCurrency(f.valor); calcularTotais(); });
 
-        creditoContainer.appendChild(wrapper);
+        const rem = document.createElement('button');
+        rem.type = 'button';
+        rem.textContent = 'Remover';
+        rem.style.marginLeft = '8px';
+        rem.addEventListener('click', () => { row.remove(); calcularTotais(); });
+
+        row.appendChild(document.createTextNode('Destino: '));
+        row.appendChild(sel);
+        row.appendChild(document.createTextNode(' Valor: '));
+        row.appendChild(valor);
+        row.appendChild(rem);
+
+        creditoContainer.appendChild(row);
         calcularTotais();
     });
 
-    // calcula totais e atualiza display (pode adicionar campos visuais)
+    // calcular totais e mostrar abaixo dos containers
     function calcularTotais() {
         let totalAnul = 0;
         let totalCred = 0;
 
-        anulacaoContainer.querySelectorAll('.anulacao-item').forEach(div => {
-            const input = div.querySelector('input');
-            if (input && input.value) {
-                const n = Number(String(input.value).replace(/\./g, '').replace(',', '.'));
-                if (!isNaN(n)) totalAnul += n;
-            }
+        anulacaoContainer.querySelectorAll('input').forEach(inp => {
+            const n = parseNumberFromString(inp.value);
+            if (n !== null) totalAnul += n;
+        });
+        creditoContainer.querySelectorAll('input').forEach(inp => {
+            const n = parseNumberFromString(inp.value);
+            if (n !== null) totalCred += n;
         });
 
-        creditoContainer.querySelectorAll('.credito-item').forEach(div => {
-            const input = div.querySelector('input');
-            if (input && input.value) {
-                const n = Number(String(input.value).replace(/\./g, '').replace(',', '.'));
-                if (!isNaN(n)) totalCred += n;
-            }
-        });
+        // incluir superávit/excesso
+        const superVal = parseNumberFromString(valorSuperavitInput?.value) || 0;
+        const excessoVal = parseNumberFromString(valorExcessoInput?.value) || 0;
 
-        // mostrar totais — se não existir, cria elementos pequenos abaixo dos containers
-        let totAnulEl = document.getElementById('total-anulacao-display');
-        let totCredEl = document.getElementById('total-credito-display');
-
-        if (!totAnulEl) {
-            totAnulEl = document.createElement('div');
-            totAnulEl.id = 'total-anulacao-display';
-            totAnulEl.style.marginTop = '8px';
-            anulacaoContainer.parentNode.insertBefore(totAnulEl, anulacaoContainer.nextSibling);
+        // mostrar
+        let totAnEl = document.getElementById('total-anulacao-display');
+        let totCrEl = document.getElementById('total-credito-display');
+        if (!totAnEl) {
+            totAnEl = document.createElement('div'); totAnEl.id = 'total-anulacao-display'; anulacaoContainer.parentNode.insertBefore(totAnEl, anulacaoContainer.nextSibling);
         }
-        if (!totCredEl) {
-            totCredEl = document.createElement('div');
-            totCredEl.id = 'total-credito-display';
-            totCredEl.style.marginTop = '8px';
-            creditoContainer.parentNode.insertBefore(totCredEl, creditoContainer.nextSibling);
+        if (!totCrEl) {
+            totCrEl = document.createElement('div'); totCrEl.id = 'total-credito-display'; creditoContainer.parentNode.insertBefore(totCrEl, creditoContainer.nextSibling);
         }
-
-        totAnulEl.innerHTML = `<strong>Total Anulação:</strong> R$ ${formatCurrency(totalAnul.toFixed(2))} (${numeroParaExtensoBR(totalAnul.toFixed(2))})`;
-        totCredEl.innerHTML = `<strong>Total Crédito:</strong> R$ ${formatCurrency(totalCred.toFixed(2))} (${numeroParaExtensoBR(totalCred.toFixed(2))})`;
+        totAnEl.innerHTML = `<strong>Total Anulação:</strong> R$ ${formatCurrency(totalAnul.toFixed(2))} (${numeroParaExtensoBR(totalAnul.toFixed(2))})`;
+        const totalFontes = totalAnul + superVal + excessoVal;
+        totCrEl.innerHTML = `<strong>Total Crédito:</strong> R$ ${formatCurrency(totalCred.toFixed(2))} (${numeroParaExtensoBR(totalCred.toFixed(2))}) <br>
+                             <strong>Total Fontes (anulação+superávit+excesso):</strong> R$ ${formatCurrency(totalFontes.toFixed(2))} (${numeroParaExtensoBR(totalFontes.toFixed(2))})`;
     }
 
-    // recalcular totais quando inputs mudam (delegation)
+    // recalcular quando qualquer input de moeda mudar (delegation)
     document.addEventListener('input', (e) => {
         if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'text') {
-            // pode ser formato de moeda
             calcularTotais();
         }
     });
 
-    // Geração do documento (HTML final)
+    // monta o texto do documento conforme modelo e gera preview (HTML)
     processarBtn?.addEventListener('click', () => {
-        const municipio = document.getElementById('nome-municipio')?.value || '';
-        const prefeito = document.getElementById('nome-prefeito')?.value || '';
+        const municipio = (document.getElementById('nome-municipio')?.value || nomeMunicipioInput.value || '').trim();
+        const prefeito = (document.getElementById('nome-prefeito')?.value || nomePrefeitoInput.value || '').trim();
         const numeroPL = document.getElementById('numero-pl')?.value || '___/_____';
-        const dataPL = document.getElementById('data-pl')?.value || '';
-        const justificativa = document.getElementById('justificativa-pl')?.value || '';
+        const dataDoc = (document.getElementById('data-pl')?.value || dataDocumentoInput.value || '').trim();
+        const justificativa = (document.getElementById('justificativa-pl')?.value || '').trim();
         const tipo = document.querySelector('input[name="tipoDocumento"]:checked')?.value || 'projetoLei';
+        const secretariaNome = nomeSecretariaInput?.value || '';
+        const secretariaCargo = cargoSecretariaInput?.value || '';
 
-        // colecionar itens de anulacao e credito
+        // coletar itens
         const anulacoes = [];
-        anulacaoContainer.querySelectorAll('.anulacao-item').forEach(div => {
+        anulacaoContainer.querySelectorAll('.anul-item').forEach(div => {
             const sel = div.querySelector('select');
             const input = div.querySelector('input');
             const f = fichasExcel[Number(sel.value)];
-            const valor = input && input.value ? Number(String(input.value).replace(/\./g, '').replace(',', '.')) : null;
-            anulacoes.push({
-                codigo: f?.codigo || sel.options[sel.selectedIndex].text,
-                descricao: f?.descricao || '',
-                valor
-            });
+            const valor = parseNumberFromString(input.value) || 0;
+            anulacoes.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
         });
-
         const creditos = [];
-        creditoContainer.querySelectorAll('.credito-item').forEach(div => {
+        creditoContainer.querySelectorAll('.cred-item').forEach(div => {
             const sel = div.querySelector('select');
             const input = div.querySelector('input');
             const f = fichasExcel[Number(sel.value)];
-            const valor = input && input.value ? Number(String(input.value).replace(/\./g, '').replace(',', '.')) : null;
-            creditos.push({
-                codigo: f?.codigo || sel.options[sel.selectedIndex].text,
-                descricao: f?.descricao || '',
-                valor
-            });
+            const valor = parseNumberFromString(input.value) || 0;
+            creditos.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
         });
 
-        // montar HTML conforme tipo
-        let tipoTitulo = tipo === 'projetoLei' ? 'PROJETO DE LEI' : (tipo === 'leiFinal' ? 'LEI' : 'DECRETO');
-        let resultadoHTML = `<div id="doc-content" style="font-family: Arial, sans-serif; color:#000; padding:20px;">`;
-        resultadoHTML += `<h2 style="text-align:center;">${tipoTitulo}</h2>`;
-        resultadoHTML += `<p style="text-align:center;"><strong>${municipio}</strong>${dataPL ? ', ' + dataPL : ''}</p>`;
-        resultadoHTML += `<p>O Prefeito Municipal, ${prefeito}, faz saber que:</p>`;
+        const superVal = parseNumberFromString(valorSuperavitInput?.value) || 0;
+        const excessoVal = parseNumberFromString(valorExcessoInput?.value) || 0;
 
-        // Artigos automáticos:
-        // Art.1º: abertura do crédito (se houver creditos)
-        if (creditos.length > 0) {
-            // soma dos creditos
-            const somaCred = creditos.reduce((s, it) => s + (it.valor || 0), 0);
-            const tipoCreditoTxt = (superavitCheck.checked || excessoCheck.checked) ? 'Crédito Adicional Suplementar' : 'Crédito Adicional Especial';
-            resultadoHTML += `<p><strong>Art. 1º</strong> Fica o Poder Executivo autorizado a abrir ${tipoCreditoTxt} na importância de R$ ${formatCurrency(somaCred.toFixed(2))} (${numeroParaExtensoBR(somaCred.toFixed(2))}), para atender a(s) seguinte(s) dotação(ões):</p>`;
-            resultadoHTML += `<ul>`;
-            creditos.forEach(it => {
-                resultadoHTML += `<li>${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor ? it.valor.toFixed(2) : 0)}</li>`;
-            });
-            resultadoHTML += `</ul>`;
-            resultadoHTML += `<p><strong>TOTAL</strong><br>R$ ${formatCurrency(somaCred.toFixed(2))}</p>`;
+        // montar HTML (preview)
+        let titulo = tipo === 'projetoLei' ? 'PROJETO DE LEI' : (tipo === 'leiFinal' ? 'LEI' : 'DECRETO');
+        let headerLine = tipo === 'decreto' ? 'Dispõe sobre a autorização para abertura de Crédito Adicional Suplementar' : 'Dispõe sobre a abertura de Crédito Adicional Suplementar';
+
+        let html = `<div style="font-family: Arial, sans-serif; padding: 18px; color:#000;">`;
+        // topo com Nº e data (se for decreto, mantém padrão do seu exemplo)
+        html += `<h3 style="text-align:center; margin-bottom:8px;">${titulo}</h3>`;
+        html += `<p style="text-align:center; margin-top:0;"><strong>${headerLine}</strong></p>`;
+        html += `<p style="text-align:center;"><strong>${municipio}</strong>${dataDoc ? ', ' + dataDoc : ''}</p>`;
+
+        if (tipo === 'decreto') {
+            html += `<p>O Prefeito Municipal de ${municipio}, usando de suas atribuições legais,</p>`;
+            html += `<p style="text-align:center;"><strong>DECRETA:</strong></p>`;
+        } else if (tipo === 'projetoLei') {
+            html += `<p>O Prefeito Municipal de ${municipio}, submetendo à apreciação da Câmara Municipal, propõe:</p>`;
         } else {
-            resultadoHTML += `<p><strong>Art. 1º</strong> Fica o Poder Executivo autorizado a abrir crédito adicional no orçamento vigente.</p>`;
+            html += `<p>O Prefeito Municipal de ${municipio}, faz saber que a Câmara Municipal decreta e eu sanciono a seguinte Lei:</p>`;
         }
 
-        // Art.2º: cobertura com anulacoes/excesso/superavit
-        if (anulacoes.length > 0 || superavitCheck.checked || excessoCheck.checked) {
-            // soma anulacoes
-            const somaAnul = anulacoes.reduce((s, it) => s + (it.valor || 0), 0);
-            resultadoHTML += `<p><strong>Art. 2º</strong> Para cobertura do crédito autorizado no artigo anterior serão utilizadas as seguintes fontes:</p>`;
-            resultadoHTML += `<ul>`;
-            if (superavitCheck.checked) {
-                const val = Number(String(valorSuperavitInput?.value || '').replace(/\./g, '').replace(',', '.')) || 0;
-                resultadoHTML += `<li>Superávit Financeiro no valor de R$ ${formatCurrency(val.toFixed(2))} (${numeroParaExtensoBR(val.toFixed(2))})</li>`;
-            }
-            if (excessoCheck.checked) {
-                const val = Number(String(valorExcessoInput?.value || '').replace(/\./g, '').replace(',', '.')) || 0;
-                resultadoHTML += `<li>Excesso de Arrecadação no valor de R$ ${formatCurrency(val.toFixed(2))} (${numeroParaExtensoBR(val.toFixed(2))})</li>`;
-            }
-            if (anulacoes.length > 0) {
-                anulacoes.forEach(it => {
-                    resultadoHTML += `<li>Anulação da dotação ${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor ? it.valor.toFixed(2) : 0)}</li>`;
-                });
-                resultadoHTML += `<li><strong>TOTAL (anulação)</strong> R$ ${formatCurrency(somaAnul.toFixed(2))} (${numeroParaExtensoBR(somaAnul.toFixed(2))})</li>`;
-            }
-            resultadoHTML += `</ul>`;
+        // Art.1: créditos (lista de destinos)
+        if (creditos.length > 0) {
+            const somaCred = creditos.reduce((s, it) => s + (it.valor || 0), 0);
+            const tipoCreditoTxt = (superavitCheck?.checked || excessoCheck?.checked) ? 'Crédito Adicional Suplementar' : 'Crédito Adicional Especial';
+            html += `<p><strong>Art. 1º</strong> Fica o Poder Executivo autorizado a abrir ${tipoCreditoTxt} na importância de R$ ${formatCurrency(somaCred.toFixed(2))} (${numeroParaExtensoBR(somaCred.toFixed(2))}), para atender à(s) seguinte(s) dotação(ões):</p>`;
+            html += `<pre style="white-space:pre-wrap; font-family: inherit; font-size: 14px;">`;
+            creditos.forEach(it => {
+                html += `${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} \t R$ ${formatCurrency(it.valor.toFixed(2))}\n`;
+            });
+            html += `\nTOTAL\nR$ ${formatCurrency(somaCred.toFixed(2))}`;
+            html += `</pre>`;
+        } else {
+            html += `<p><strong>Art. 1º</strong> Fica o Poder Executivo autorizado a abrir crédito adicional no orçamento vigente.</p>`;
         }
 
-        // Art.3º: inserir LDO, PPA e legislação citada
-        resultadoHTML += `<p><strong>Art. 3º</strong> As alterações promovidas passam a fazer parte da LDO e do PPA vigentes, observadas as disposições legais e normas aplicáveis.</p>`;
+        // Art.2: cobertura (anulações / superávit / excesso)
+        const somaAnul = anulacoes.reduce((s, it) => s + (it.valor || 0), 0);
+        if (anulacoes.length > 0 || superVal || excessoVal) {
+            html += `<p><strong>Art. 2º</strong> Para cobertura do crédito autorizado no artigo anterior serão utilizadas as seguintes fontes:</p>`;
+            html += `<ul>`;
+            if (superVal) html += `<li>Superávit Financeiro no valor de R$ ${formatCurrency(superVal.toFixed(2))} (${numeroParaExtensoBR(superVal.toFixed(2))})</li>`;
+            if (excessoVal) html += `<li>Excesso de Arrecadação no valor de R$ ${formatCurrency(excessoVal.toFixed(2))} (${numeroParaExtensoBR(excessoVal.toFixed(2))})</li>`;
+            anulacoes.forEach(it => html += `<li>Anulação da dotação ${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor.toFixed(2))}</li>`);
+            if (anulacoes.length > 0) html += `<li><strong>TOTAL</strong> R$ ${formatCurrency(somaAnul.toFixed(2))}</li>`;
+            html += `</ul>`;
+        }
 
-        // Art.4º: vigência
-        resultadoHTML += `<p><strong>Art. 4º</strong> Este ${tipo === 'decreto' ? 'decreto' : 'projeto de lei' } entra em vigor na data de sua publicação.</p>`;
+        // Art.3 e Art.4 (padronizados)
+        html += `<p><strong>Art. 3º</strong> As alterações promovidas nos artigos anteriores passam a fazer parte da LDO e do PPA vigentes, para fins do disposto em legislação aplicável.</p>`;
+        html += `<p><strong>Art. 4º</strong> Este ${tipo === 'decreto' ? 'decreto' : (tipo === 'leiFinal' ? 'lei' : 'projeto de lei')} entra em vigor na data de sua publicação.</p>`;
 
-        resultadoHTML += `</div>`; // fim doc-content
+        // assinatura / rodapé
+        html += `<div style="margin-top:30px; text-align:center;">`;
+        html += `<p>${municipio}${dataDoc ? ', ' + formatDataParaAssinatura(dataDoc) : ''}</p>`;
+        html += `<p style="margin-top:40px;"><strong>${prefeito}</strong><br>PREFEITO MUNICIPAL</p>`;
+        if (secretariaNome) {
+            html += `<p style="margin-top:30px;"><strong>${secretariaNome}</strong><br>${secretariaCargo || 'Secretaria'}</p>`;
+        }
+        html += `</div>`;
 
-        // JUSTIFICATIVA em página separada para Projeto de Lei
+        // justificativa em página separada, se for projeto de lei
         if (tipo === 'projetoLei') {
-            resultadoHTML += `<div style="page-break-before: always;"></div>`;
-            resultadoHTML += `<div style="font-family: Arial, sans-serif; padding:20px;">`;
-            resultadoHTML += `<h3 style="text-align:center;">JUSTIFICATIVA</h3>`;
-            resultadoHTML += `<p>${justificativa.replace(/\n/g, '<br>')}</p>`;
-            resultadoHTML += `</div>`;
+            html += `<div style="page-break-before: always;"></div>`;
+            html += `<div style="padding:18px;"><h3 style="text-align:center">JUSTIFICATIVA</h3>`;
+            html += `<p style="white-space:pre-wrap;">${justificativa}</p></div>`;
         }
 
-        projetoLeiContainer.innerHTML = resultadoHTML;
+        projetoLeiContainer.innerHTML = html;
         projetoLeiContainer.classList.remove('hidden');
         gerarPdfBtn.classList.remove('hidden');
         gerarDocxBtn.classList.remove('hidden');
 
-        // recalcula totais ao fim
         calcularTotais();
     });
 
-    // PDF (html2canvas + jspdf)
-    gerarPdfBtn?.addEventListener('click', () => {
-        const element = document.getElementById('projeto-lei-gerado');
-        if (!element) return;
-        // ajustar temporariamente estilos para impressão
-        html2canvas(element, { scale: 2, useCORS: true }).then(canvas => {
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = (canvas.height * pageWidth) / canvas.width;
-            pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
-            pdf.save('documento_orcamentario.pdf');
-        }).catch(err => {
-            alert('Erro ao gerar PDF: ' + err.message);
-        });
-    });
+    // util para formatar data (de YYYY-MM-DD para "05 de junho de 2025")
+    function formatDataParaAssinatura(dateStr) {
+        if (!dateStr) return '';
+        // tenta YYYY-MM-DD ou DD/MM/YYYY
+        let d, m, y;
+        if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            y = parts[0]; m = parts[1]; d = parts[2];
+        } else if (dateStr.includes('/')) {
+            const parts = dateStr.split('/');
+            d = parts[0]; m = parts[1]; y = parts[2];
+        } else return dateStr;
+        const meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+        const mm = parseInt(m, 10) - 1;
+        return `${parseInt(d,10)} de ${meses[mm]} de ${y}`;
+    }
 
-    // DOCX (usando docx)
-    gerarDocxBtn?.addEventListener('click', () => {
-        if (!window.docx) {
-            alert('Biblioteca docx não está carregada.');
-            return;
-        }
+    // -----------------------------
+    // Geração de DOCX (fidedigno)
+    // -----------------------------
+    gerarDocxBtn?.addEventListener('click', async () => {
+        if (!window.docx) { alert('Biblioteca docx não carregada.'); return; }
         const { Document, Packer, Paragraph, TextRun, HeadingLevel } = window.docx;
         const contentEl = document.getElementById('projeto-lei-gerado');
-        if (!contentEl) return;
+        if (!contentEl) { alert('Gere o documento antes.'); return; }
 
-        // construir texto plano com quebras
-        // converter nós em texto simples, incluindo listas
-        function nodeToText(node) {
-            if (!node) return '';
-            if (node.nodeType === Node.TEXT_NODE) return node.nodeValue;
-            let txt = '';
-            node.childNodes.forEach(child => {
-                if (child.nodeName === 'BR') txt += '\n';
-                else txt += nodeToText(child);
-            });
-            return txt;
-        }
-        const fullText = nodeToText(contentEl);
+        // Extrair informação do preview (já montamos a estrutura antes) -> melhor construir novamente do modelo
+        // Para simplificar, recriaremos o conteúdo com os mesmos dados usados no processarBtn
+        // Reusar os campos
+        const municipio = (document.getElementById('nome-municipio')?.value || '').trim();
+        const prefeito = (document.getElementById('nome-prefeito')?.value || '').trim();
+        const numeroPL = document.getElementById('numero-pl')?.value || '___/_____';
+        const dataDoc = (document.getElementById('data-pl')?.value || '').trim();
+        const justificativa = (document.getElementById('justificativa-pl')?.value || '').trim();
+        const tipo = document.querySelector('input[name="tipoDocumento"]:checked')?.value || 'projetoLei';
+        const secretariaNome = document.getElementById('nome-secretaria')?.value || '';
+        const secretariaCargo = document.getElementById('cargo-secretaria')?.value || '';
 
-        // transformar em parágrafos simples por quebras de linha
-        const paragraphs = fullText.split(/\n{2,}|\r\n{2,}/).map(p => p.trim()).filter(p => p.length > 0);
+        // coletar items (mesma lógica que no preview)
+        const anulacoes = [];
+        anulacaoContainer.querySelectorAll('.anul-item').forEach(div => {
+            const sel = div.querySelector('select'); const input = div.querySelector('input');
+            const f = fichasExcel[Number(sel.value)]; const valor = parseNumberFromString(input.value) || 0;
+            anulacoes.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
+        });
+        const creditos = [];
+        creditoContainer.querySelectorAll('.cred-item').forEach(div => {
+            const sel = div.querySelector('select'); const input = div.querySelector('input');
+            const f = fichasExcel[Number(sel.value)]; const valor = parseNumberFromString(input.value) || 0;
+            creditos.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
+        });
 
+        // criar doc
         const doc = new Document({
             sections: [{
-                children: paragraphs.map(p => new Paragraph({ children: [ new TextRun(p) ] }))
+                properties: {},
+                children: [
+                    new Paragraph({ text: tipo === 'decreto' ? 'DECRETO' : (tipo === 'projetoLei' ? 'PROJETO DE LEI' : 'LEI'), heading: HeadingLevel.HEADING_2, alignment: window.docx.AlignmentType.CENTER }),
+                    new Paragraph({ text: '', spacing: { after: 200 } }),
+                    new Paragraph({ text: municipio + (dataDoc ? ', ' + dataDoc : ''), alignment: window.docx.AlignmentType.CENTER }),
+                    new Paragraph({ text: '' }),
+                    // corpo introdutório
+                    new Paragraph({ text: tipo === 'decreto' ? `O Prefeito Municipal de ${municipio}, usando de suas atribuições legais, DECRETA:` : (tipo === 'projetoLei' ? `O Prefeito Municipal de ${municipio}, submetendo à apreciação da Câmara Municipal, propõe:` : `O Prefeito Municipal de ${municipio}, faz saber que a Câmara Municipal decreta e eu sanciono a seguinte Lei:`) }),
+                    new Paragraph({ text: '' })
+                ]
             }]
         });
 
-        Packer.toBlob(doc).then(blob => {
+        // inserir artigos (Art. 1º)
+        const somaCred = creditos.reduce((s, it) => s + (it.valor || 0), 0);
+        if (creditos.length > 0) {
+            const tipoCreditoTxt = (superavitCheck?.checked || excessoCheck?.checked) ? 'Crédito Adicional Suplementar' : 'Crédito Adicional Especial';
+            doc.addSection({
+                children: [
+                    new Paragraph({ children: [ new TextRun({ text: 'Art. 1º ', bold: true }), new TextRun({ text: `Fica o Poder Executivo autorizado a abrir ${tipoCreditoTxt} na importância de R$ ${formatCurrency(somaCred.toFixed(2))} (${numeroParaExtensoBR(somaCred.toFixed(2))}), para atender à(s) seguinte(s) dotação(ões):` }) ])
+                ]
+            });
+            // lista de creditos (cada item em parágrafo monoespaçado)
+            creditos.forEach(it => {
+                doc.addSection({ children: [ new Paragraph({ text: `${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor.toFixed(2))}` }) ] });
+            });
+            doc.addSection({ children: [ new Paragraph({ text: `TOTAL\nR$ ${formatCurrency(somaCred.toFixed(2))}` }) ] });
+        } else {
+            doc.addSection({ children: [ new Paragraph({ children: [ new TextRun({ text: 'Art. 1º ', bold: true }), new TextRun({ text: 'Fica o Poder Executivo autorizado a abrir crédito adicional no orçamento vigente.' }) ] }) ] });
+        }
+
+        // Art.2: fontes
+        const somaAnul = anulacoes.reduce((s, it) => s + (it.valor || 0), 0);
+        if (anulacoes.length > 0 || parseNumberFromString(valorSuperavitInput?.value) || parseNumberFromString(valorExcessoInput?.value)) {
+            const fonteParas = [];
+            const superVal = parseNumberFromString(valorSuperavitInput?.value) || 0;
+            const excessoVal = parseNumberFromString(valorExcessoInput?.value) || 0;
+            if (superVal) fonteParas.push(`Superávit Financeiro no valor de R$ ${formatCurrency(superVal.toFixed(2))} (${numeroParaExtensoBR(superVal.toFixed(2))})`);
+            if (excessoVal) fonteParas.push(`Excesso de Arrecadação no valor de R$ ${formatCurrency(excessoVal.toFixed(2))} (${numeroParaExtensoBR(excessoVal.toFixed(2))})`);
+            anulacoes.forEach(it => fonteParas.push(`Anulação da dotação ${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor.toFixed(2))}`));
+            const art2Text = 'Para cobertura do crédito autorizado no artigo anterior serão utilizadas as seguintes fontes:';
+            doc.addSection({ children: [ new Paragraph({ children: [ new TextRun({ text: 'Art. 2º ', bold: true }), new TextRun({ text: art2Text }) ] }) ] });
+            fonteParas.forEach(fp => doc.addSection({ children: [ new Paragraph({ text: fp }) ] }));
+            if (anulacoes.length > 0) doc.addSection({ children: [ new Paragraph({ text: `TOTAL (anulação) R$ ${formatCurrency(somaAnul.toFixed(2))}` }) ] });
+        }
+
+        // Art.3 e Art.4
+        doc.addSection({ children: [ new Paragraph({ children: [ new TextRun({ text: 'Art. 3º ', bold: true }), new TextRun({ text: 'As alterações promovidas passam a fazer parte da LDO e do PPA vigentes.' }) ] }) ] });
+        doc.addSection({ children: [ new Paragraph({ children: [ new TextRun({ text: 'Art. 4º ', bold: true }), new TextRun({ text: `Este ${tipo === 'decreto' ? 'decreto' : (tipo === 'leiFinal' ? 'lei' : 'projeto de lei')} entra em vigor na data de sua publicação.` }) ] }) ] });
+
+        // assinatura
+        doc.addSection({ children: [
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: `${municipio}${dataDoc ? ', ' + formatDataParaAssinatura(dataDoc) : ''}`, alignment: window.docx.AlignmentType.CENTER }),
+            new Paragraph({ text: '' }),
+            new Paragraph({ text: `${prefeito}`, alignment: window.docx.AlignmentType.CENTER }),
+            new Paragraph({ text: 'PREFEITO MUNICIPAL', alignment: window.docx.AlignmentType.CENTER }),
+            ...(secretariaNome ? [ new Paragraph({ text: '' }), new Paragraph({ text: `${secretariaNome}`, alignment: window.docx.AlignmentType.CENTER }), new Paragraph({ text: `${secretariaCargo || 'Secretaria'}`, alignment: window.docx.AlignmentType.CENTER }) ] : [])
+        ] });
+
+        // justificativa em nova seção/página (se projeto de lei)
+        if (document.querySelector('input[name="tipoDocumento"]:checked')?.value === 'projetoLei') {
+            doc.addSection({ children: [
+                new Paragraph({ text: '', pageBreakBefore: true }),
+                new Paragraph({ text: 'JUSTIFICATIVA', heading: HeadingLevel.HEADING_3, alignment: window.docx.AlignmentType.CENTER }),
+                new Paragraph({ text: justificativa || '' })
+            ] });
+        }
+
+        // gerar blob e baixar
+        try {
+            const blob = await Packer.toBlob(doc);
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = 'documento_orcamentario.docx';
+            a.download = `documento_orcamentario.docx`;
             a.click();
-        }).catch(err => {
+        } catch (err) {
             alert('Erro ao gerar DOCX: ' + err.message);
-        });
+        }
     });
 
-    // recalcular totais a cada mudança
+    // -----------------------------
+    // Geração de PDF (jsPDF - texto selecionável)
+    // -----------------------------
+    gerarPdfBtn?.addEventListener('click', () => {
+        const municipio = (document.getElementById('nome-municipio')?.value || '').trim();
+        const prefeito = (document.getElementById('nome-prefeito')?.value || '').trim();
+        const numeroPL = document.getElementById('numero-pl')?.value || '___/_____';
+        const dataDoc = (document.getElementById('data-pl')?.value || '').trim();
+        const justificativa = (document.getElementById('justificativa-pl')?.value || '').trim();
+        const tipo = document.querySelector('input[name="tipoDocumento"]:checked')?.value || 'projetoLei';
+        const secretariaNome = document.getElementById('nome-secretaria')?.value || '';
+        const secretariaCargo = document.getElementById('cargo-secretaria')?.value || '';
+
+        // coletar items
+        const anulacoes = [];
+        anulacaoContainer.querySelectorAll('.anul-item').forEach(div => {
+            const sel = div.querySelector('select'); const input = div.querySelector('input');
+            const f = fichasExcel[Number(sel.value)]; const valor = parseNumberFromString(input.value) || 0;
+            anulacoes.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
+        });
+        const creditos = [];
+        creditoContainer.querySelectorAll('.cred-item').forEach(div => {
+            const sel = div.querySelector('select'); const input = div.querySelector('input');
+            const f = fichasExcel[Number(sel.value)]; const valor = parseNumberFromString(input.value) || 0;
+            creditos.push({ codigo: f?.codigo || sel.options[sel.selectedIndex].text, descricao: f?.descricao || '', valor });
+        });
+
+        const superVal = parseNumberFromString(valorSuperavitInput?.value) || 0;
+        const excessoVal = parseNumberFromString(valorExcessoInput?.value) || 0;
+
+        const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const margin = 15;
+        let y = 20;
+        pdf.setFont('Times', 'Normal');
+        pdf.setFontSize(12);
+
+        function addTitleCentered(text) {
+            pdf.setFontSize(14); pdf.setFont('Times', 'Bold');
+            pdf.text(text, pageWidth / 2, y, { align: 'center' });
+            y += 8;
+            pdf.setFont('Times', 'Normal'); pdf.setFontSize(12);
+        }
+
+        function addParagraph(text) {
+            const split = pdf.splitTextToSize(text, pageWidth - margin * 2);
+            pdf.text(split, margin, y);
+            y += split.length * 6;
+            if (y > pdf.internal.pageSize.getHeight() - 30) { pdf.addPage(); y = 20; }
+        }
+
+        // header
+        const titulo = tipo === 'decreto' ? 'DECRETO' : (tipo === 'projetoLei' ? 'PROJETO DE LEI' : 'LEI');
+        addTitleCentered(titulo);
+        addParagraph(`${municipio}${dataDoc ? ', ' + dataDoc : ''}`);
+        if (tipo === 'decreto') addParagraph(`O Prefeito Municipal de ${municipio}, usando de suas atribuições legais,`);
+        if (tipo === 'decreto') { addParagraph('DECRETA:'); } else if (tipo === 'projetoLei') addParagraph('O Prefeito Municipal submete ao Legislativo o seguinte projeto:'); else addParagraph('Faço saber que a Câmara Municipal decreta e eu sanciono a seguinte Lei:');
+
+        // Art.1
+        if (creditos.length > 0) {
+            const somaCred = creditos.reduce((s, it) => s + (it.valor || 0), 0);
+            const tipoCreditoTxt = (superavitCheck?.checked || excessoCheck?.checked) ? 'Crédito Adicional Suplementar' : 'Crédito Adicional Especial';
+            addParagraph(`Art. 1º Fica o Poder Executivo autorizado a abrir ${tipoCreditoTxt} na importância de R$ ${formatCurrency(somaCred.toFixed(2))} (${numeroParaExtensoBR(somaCred.toFixed(2))}), para atender à(s) seguinte(s) dotação(ões):`);
+            creditos.forEach(it => addParagraph(`${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor.toFixed(2))}`));
+            addParagraph(`TOTAL\nR$ ${formatCurrency(somaCred.toFixed(2))}`);
+        } else {
+            addParagraph('Art. 1º Fica o Poder Executivo autorizado a abrir crédito adicional no orçamento vigente.');
+        }
+
+        // Art.2
+        if (anulacoes.length > 0 || superVal || excessoVal) {
+            addParagraph('Art. 2º Para cobertura do crédito autorizado no artigo anterior serão utilizadas as seguintes fontes:');
+            if (superVal) addParagraph(`- Superávit Financeiro no valor de R$ ${formatCurrency(superVal.toFixed(2))} (${numeroParaExtensoBR(superVal.toFixed(2))})`);
+            if (excessoVal) addParagraph(`- Excesso de Arrecadação no valor de R$ ${formatCurrency(excessoVal.toFixed(2))} (${numeroParaExtensoBR(excessoVal.toFixed(2))})`);
+            anulacoes.forEach(it => addParagraph(`- Anulação da dotação ${it.codigo} ${it.descricao ? '- ' + it.descricao : ''} – R$ ${formatCurrency(it.valor.toFixed(2))}`));
+            if (anulacoes.length > 0) {
+                const somaAnul = anulacoes.reduce((s, it) => s + (it.valor || 0), 0);
+                addParagraph(`TOTAL\nR$ ${formatCurrency(somaAnul.toFixed(2))}`);
+            }
+        }
+
+        addParagraph('Art. 3º As alterações promovidas passam a integrar a LDO e o PPA vigentes, observadas as disposições legais aplicáveis.');
+        addParagraph(`Art. 4º Este ${tipo === 'decreto' ? 'decreto' : (tipo === 'leiFinal' ? 'lei' : 'projeto de lei')} entra em vigor na data de sua publicação.`);
+
+        // assinatura
+        y += 10;
+        addParagraph(`${municipio}${dataDoc ? ', ' + formatDataParaAssinatura(dataDoc) : ''}`);
+        y += 10;
+        addParagraph(`${prefeito}`);
+        addParagraph('PREFEITO MUNICIPAL');
+        if (secretariaNome) {
+            y += 10;
+            addParagraph(`${secretariaNome}`);
+            addParagraph(secretariaCargo || 'Secretaria');
+        }
+
+        // justificativa: nova página
+        if (document.querySelector('input[name="tipoDocumento"]:checked')?.value === 'projetoLei') {
+            pdf.addPage(); y = 20;
+            addTitleCentered('JUSTIFICATIVA');
+            addParagraph(justificativa || '');
+        }
+
+        pdf.save('documento_orcamentario.pdf');
+    });
+
+    // recalcula periodicamente (fallback)
     setInterval(calcularTotais, 1000);
 });
